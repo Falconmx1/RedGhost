@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedGhost - AI Network Security Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            font-family: 'Courier New', monospace;
+            color: #00ff9d;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #00ff9d;
+            padding-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            text-shadow: 0 0 10px #00ff9d;
+        }
+        
+        .header p {
+            color: #888;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00ff9d;
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .card h3 {
+            margin-bottom: 15px;
+            color: #ff3366;
+            border-left: 3px solid #ff3366;
+            padding-left: 10px;
+        }
+        
+        .metric {
+            font-size: 2em;
+            text-align: center;
+            margin: 10px 0;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #00ff9d, #00cc7a);
+            color: #0a0e27;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        
+        .button:hover {
+            transform: scale(1.05);
+        }
+        
+        .button-danger {
+            background: linear-gradient(135deg, #ff3366, #cc0033);
+            color: white;
+        }
+        
+        .hosts-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .host-item {
+            background: #1a1f3a;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .alert {
+            background: #ff336622;
+            border-left: 3px solid #ff3366;
+            padding: 10px;
+            margin: 5px 0;
+        }
+        
+        .status-online {
+            color: #00ff9d;
+        }
+        
+        .status-offline {
+            color: #ff3366;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .live-badge {
+            animation: pulse 1s infinite;
+            background: #ff3366;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>👻 RedGhost AI Dashboard</h1>
+        <p>Inteligencia Artificial para Seguridad de Redes | Deep Learning + RandomForest</p>
+        <div>
+            <span class="live-badge">LIVE MONITORING</span>
+        </div>
+    </div>
+    
+    <div class="grid">
+        <!-- Estado del Sistema -->
+        <div class="card">
+            <h3>🤖 Estado de IA</h3>
+            <div class="metric" id="ia-status">Cargando...</div>
+            <div id="dl-status"></div>
+        </div>
+        
+        <!-- Métricas en Tiempo Real -->
+        <div class="card">
+            <h3>📊 Métricas en Tiempo Real</h3>
+            <div id="realtime-metrics">
+                <div>Throughput: <span id="throughput">0</span> Mbps</div>
+                <div>Packet Loss: <span id="packet-loss">0</span>%</div>
+                <div>Latencia: <span id="latency">0</span> ms</div>
+                <div>Ancho de Banda: <span id="bandwidth">0</span>%</div>
+            </div>
+        </div>
+        
+        <!-- Gráfico en Tiempo Real -->
+        <div class="card">
+            <h3>📈 Tráfico de Red (Últimos 60s)</h3>
+            <div id="traffic-chart"></div>
+        </div>
+        
+        <!-- Escaneo de Red -->
+        <div class="card">
+            <h3>🔍 Descubrimiento de Hosts</h3>
+            <button class="button" onclick="startScan()">Iniciar Escaneo ARP</button>
+            <button class="button" onclick="exportResults()">Exportar Resultados</button>
+            <div id="scan-status"></div>
+            <div class="hosts-list" id="hosts-list"></div>
+        </div>
+        
+        <!-- Predicción con Deep Learning -->
+        <div class="card">
+            <h3>🧠 Deep Learning Predictor</h3>
+            <button class="button" onclick="makePrediction()">Predecir Tráfico Futuro</button>
+            <div id="prediction-result"></div>
+        </div>
+        
+        <!-- Detección de Anomalías -->
+        <div class="card">
+            <h3>⚠️ Detección de Anomalías</h3>
+            <button class="button button-danger" onclick="checkAnomaly()">Analizar Anomalías</button>
+            <div id="anomaly-result"></div>
+        </div>
+        
+        <!-- Alertas -->
+        <div class="card">
+            <h3>🚨 Alertas de Seguridad</h3>
+            <div id="alerts-list"></div>
+        </div>
+    </div>
+    
+    <script>
+        let trafficData = [];
+        
+        // Actualizar métricas en tiempo real
+        function updateRealtimeMetrics() {
+            fetch('/api/metrics/realtime')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('throughput').textContent = data.throughput.toFixed(2);
+                    document.getElementById('packet-loss').textContent = data.packet_loss.toFixed(2);
+                    document.getElementById('latency').textContent = data.latency.toFixed(2);
+                    document.getElementById('bandwidth').textContent = data.bandwidth_usage.toFixed(2);
+                    
+                    // Actualizar gráfico
+                    trafficData.push(data.throughput);
+                    if (trafficData.length > 60) trafficData.shift();
+                    updateChart();
+                });
+        }
+        
+        // Actualizar estado de IA
+        function updateAIStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('ia-status').innerHTML = data.ia_entrenada ? 
+                        '<span class="status-online">✅ IA Entrenada</span>' : 
+                        '<span class="status-offline">⚠️ IA no entrenada</span>';
+                    document.getElementById('dl-status').innerHTML = data.dl_entrenado ?
+                        '<span class="status-online">✅ Deep Learning Activo</span>' :
+                        '<span class="status-offline">⚠️ DL no entrenado</span>';
+                });
+        }
+        
+        // Gráfico
+        function updateChart() {
+            const trace = {
+                y: trafficData,
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: '#00ff9d', width: 2 },
+                fill: 'tozeroy',
+                fillcolor: 'rgba(0, 255, 157, 0.1)'
+            };
+            
+            Plotly.newPlot('traffic-chart', [trace], {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                xaxis: { title: 'Tiempo (segundos)', color: '#fff' },
+                yaxis: { title: 'Throughput (Mbps)', color: '#fff' }
+            });
+        }
+        
+        // Escaneo de red
+        function startScan() {
+            document.getElementById('scan-status').innerHTML = 'Escaneando red... 🔍';
+            fetch('/api/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target: '192.168.1.0/24' })
+            })
+            .then(() => {
+                document.getElementById('scan-status').innerHTML = 'Escaneo completado ✅';
+                setTimeout(loadHosts, 3000);
+            });
+        }
+        
+        function loadHosts() {
+            fetch('/api/hosts')
+                .then(response => response.json())
+                .then(hosts => {
+                    const container = document.getElementById('hosts-list');
+                    container.innerHTML = '';
+                    hosts.forEach(host => {
+                        container.innerHTML += `
+                            <div class="host-item">
+                                🖥️ IP: ${host.ip}<br>
+                                🔌 MAC: ${host.mac}<br>
+                                🏭 Vendor: ${host.vendor}
+                            </div>
+                        `;
+                    });
+                });
+        }
+        
+        // Predicción con DL
+        function makePrediction() {
+            const historial = Array(10).fill().map(() => [
+                Math.random() * 100 + 50,
+                Math.random() * 100 + 20,
+                Math.random() * 10,
+                Math.random() * 1000 + 100
+            ]);
+            
+            fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ historial: historial })
+            })
+            .then(response => response.json())
+            .then(pred => {
+                document.getElementById('prediction-result').innerHTML = `
+                    <div class="metric">📡 Predicción LSTM</div>
+                    <div>Packet Size: ${pred.prediccion?.packet_size?.toFixed(2) || 'N/A'} bytes</div>
+                    <div>PPS: ${pred.prediccion?.packets_per_sec?.toFixed(2) || 'N/A'}</div>
+                    <div>Confianza: ${(pred.confianza * 100).toFixed(1)}%</div>
+                `;
+            });
+        }
+        
+        // Detección de anomalías
+        function checkAnomaly() {
+            const metricas = [
+                Math.random() * 1000,
+                Math.random() * 500,
+                Math.random() * 100,
+                Math.random() * 5000
+            ];
+            
+            fetch('/api/anomaly', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ metricas: metricas })
+            })
+            .then(response => response.json())
+            .then(anomaly => {
+                const resultDiv = document.getElementById('anomaly-result');
+                if (anomaly.es_anomalia) {
+                    resultDiv.innerHTML = `
+                        <div class="alert">
+                            🚨 ANOMALÍA DETECTADA<br>
+                            Severidad: ${anomaly.severidad}<br>
+                            Error reconstrucción: ${anomaly.error_reconstruccion.toFixed(3)}
+                        </div>
+                    `;
+                    
+                    // Agregar a alertas
+                    const alertsDiv = document.getElementById('alerts-list');
+                    alertsDiv.innerHTML = `
+                        <div class="alert">
+                            ${new Date().toLocaleTimeString()} - Anomalía detectada (${anomaly.severidad})
+                        </div>
+                    ` + alertsDiv.innerHTML;
+                } else {
+                    resultDiv.innerHTML = '<div>✅ Tráfico normal</div>';
+                }
+            });
+        }
+        
+        function exportResults() {
+            fetch('/api/hosts')
+                .then(response => response.json())
+                .then(hosts => {
+                    fetch('/api/export', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tipo: 'json', datos: hosts })
+                    })
+                    .then(() => alert('✅ Resultados exportados a outputs/'));
+                });
+        }
+        
+        // Inicializar
+        setInterval(updateRealtimeMetrics, 2000);
+        setInterval(updateAIStatus, 5000);
+        updateAIStatus();
+        loadHosts();
+    </script>
+</body>
+</html>
