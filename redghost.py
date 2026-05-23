@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-# RedGhost - Herramienta de IA REAL para análisis de red
+# RedGhost - Herramienta completa con IA, Deep Learning, Web y Exportación
 
 import sys
 import time
-import random
-import subprocess
+import json
 from colorama import init, Fore, Style
 from network_ai import ai_engine
+from deep_network_ai import deep_ai
 from scanner import RealScanner
+from host_discovery import HostDiscovery
+from export_utils import export_utils
+from web_interface import start_web_server
+import threading
 
 init(autoreset=True)
 
@@ -17,179 +21,103 @@ RED = Fore.RED
 BLUE = Fore.BLUE
 YELLOW = Fore.YELLOW
 CYAN = Fore.CYAN
-MAGENTA = Fore.MAGENTA
 RESET = Style.RESET_ALL
 
 def mostrar_banner():
     banner = f"""
 {GREEN}╔═══════════════════════════════════════════════════════════════════════╗
-║  {RED}██████╗ {BLUE}███████╗{YELLOW}██████╗ {GREEN} ██████╗ {CYAN}██╗  ██╗{MAGENTA} ███████╗{RESET}                    ║
-║  {RED}██╔══██╗{BLUE}██╔════╝{YELLOW}██╔══██╗{GREEN}██╔════╝ {CYAN}██║  ██║{MAGENTA}██╔════╝{RESET}                    ║
-║  {RED}██████╔╝{BLUE}█████╗  {YELLOW}██║  ██║{GREEN}██║  ███╗{CYAN}███████║{MAGENTA}█████╗  {RESET}                    ║
-║  {RED}██╔══██╗{BLUE}██╔══╝  {YELLOW}██║  ██║{GREEN}██║   ██║{CYAN}██╔══██║{MAGENTA}██╔══╝  {RESET}                    ║
-║  {RED}██║  ██║{BLUE}███████╗{YELLOW}██████╔╝{GREEN}╚██████╔╝{CYAN}██║  ██║{MAGENTA}███████╗{RESET}                    ║
-║  {RED}╚═╝  ╚═╝{BLUE}╚══════╝{YELLOW}╚═════╝ {GREEN} ╚═════╝ {CYAN}╚═╝  ╚═╝{MAGENTA}╚══════╝{RESET}                    ║
+║  {RED}██████╗ {BLUE}███████╗{YELLOW}██████╗ {GREEN} ██████╗ {CYAN}██╗  ██╗{RESET}                         ║
+║  {RED}██╔══██╗{BLUE}██╔════╝{YELLOW}██╔══██╗{GREEN}██╔════╝ {CYAN}██║  ██║{RESET}                         ║
+║  {RED}██████╔╝{BLUE}█████╗  {YELLOW}██║  ██║{GREEN}██║  ███╗{CYAN}███████║{RESET}                         ║
+║  {RED}██╔══██╗{BLUE}██╔══╝  {YELLOW}██║  ██║{GREEN}██║   ██║{CYAN}██╔══██║{RESET}                         ║
+║  {RED}██║  ██║{BLUE}███████╗{YELLOW}██████╔╝{GREEN}╚██████╔╝{CYAN}██║  ██║{RESET}                         ║
+║  {RED}╚═╝  ╚═╝{BLUE}╚══════╝{YELLOW}╚═════╝ {GREEN} ╚═════╝ {CYAN}╚═╝  ╚═╝{RESET}                         ║
 ║                                                                           ║
-║     {CYAN}RedGhost - IA para Redes v2.0 (Real ML){RESET}                             ║
-║     {YELLOW}RandomForest | IsolationForest | Scapy{RESET}                            ║
+║     {CYAN}RedGhost v3.0 - Ultimate AI Network Toolkit{RESET}                      ║
+║     {YELLOW}RandomForest | LSTM | Autoencoder | Flask | Scapy{RESET}               ║
 ╚═══════════════════════════════════════════════════════════════════════════╝{RESET}
 """
     print(banner)
 
 def menu_principal():
     print(f"\n{BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
-    print(f"{GREEN}[1]{RESET} Escaneo de puertos REAL con Scapy + IA predictiva")
-    print(f"{GREEN}[2]{RESET} Análisis de tráfico en tiempo real (RandomForest)")
-    print(f"{GREEN}[3]{RESET} Predicción de latencia (Regresión Lineal)")
-    print(f"{GREEN}[4]{RESET} Detección de anomalías (Isolation Forest)")
-    print(f"{GREEN}[5]{RESET} Análisis de patrón de paquetes")
-    print(f"{GREEN}[6]{RESET} Entrenar modelos IA con nuevos datos")
-    print(f"{GREEN}[7]{RESET} Salir")
+    print(f"{GREEN}[1]{RESET} Escaneo de puertos REAL (Scapy)")
+    print(f"{GREEN}[2]{RESET} Descubrimiento de hosts en red")
+    print(f"{GREEN}[3]{RESET} Análisis de tráfico (RandomForest)")
+    print(f"{GREEN}[4]{RESET} Predicción de latencia (Regresión Lineal)")
+    print(f"{GREEN}[5]{RESET} Detección de anomalías (Isolation Forest)")
+    print(f"{GREEN}[6]{RESET} Predicción con Deep Learning (LSTM)")
+    print(f"{GREEN}[7]{RESET} Detección profunda (Autoencoder)")
+    print(f"{GREEN}[8]{RESET} Exportar resultados (JSON/CSV)")
+    print(f"{GREEN}[9]{RESET} 🌐 Iniciar interfaz web (Flask)")
+    print(f"{GREEN}[10]{RESET} Salir")
     print(f"{BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{RESET}")
 
-def escaneo_real_con_ia():
-    ip = input(f"{CYAN}🌐 Ingresa IP objetivo: {RESET}")
-    if not ip:
-        print(f"{RED}❌ IP inválida{RESET}")
-        return
-    
-    print(f"{YELLOW}🤖 Inicializando IA para escaneo predictivo...{RESET}")
+def escaneo_puertos():
+    ip = input(f"{CYAN}🌐 IP objetivo: {RESET}")
     scanner = RealScanner(ip)
-    
-    # Escaneo real
     resultados = scanner.escanear_puertos()
     
-    # Predicciones IA sobre los puertos encontrados
-    print(f"\n{CYAN}🧠 Analizando resultados con IA...{RESET}")
-    for puerto in scanner.puertos_abiertos:
-        servicio_predicho = scanner.servicio_predicho(puerto)
-        print(f"  {GREEN}✓ Puerto {puerto}{RESET} → {YELLOW}{servicio_predicho}{RESET}")
-        
-        # Recomendación IA
-        if puerto in [22, 3389, 5900]:
-            print(f"    {BLUE}🤖 IA: Alto riesgo si está expuesto a internet{RESET}")
-        elif puerto in [80, 443, 8080]:
-            print(f"    {BLUE}🤖 IA: Servicio web - recomienda WAF{RESET}")
+    # Preguntar si exportar
+    if input(f"{YELLOW}¿Exportar resultados? (s/n): {RESET}").lower() == 's':
+        export_utils.export_scan_results([{'ip': ip, 'puertos_abiertos': list(resultados.keys())}])
     
-    print(f"\n{GREEN}✅ Escaneo completado. {len(scanner.puertos_abiertos)} puertos abiertos encontrados.{RESET}")
+    input(f"{YELLOW}Enter para continuar...{RESET}")
 
-def analisis_trafico_ia():
-    print(f"{YELLOW}📡 Capturando tráfico simulado para análisis...{RESET}")
+def descubrimiento_hosts():
+    discovery = HostDiscovery()
+    hosts = discovery.escaneo_completo()
     
-    # Simular métricas de red reales
-    metricas = []
-    for _ in range(20):
-        metricas.append({
-            'packet_size': random.randint(40, 1500),
-            'packets_per_sec': random.randint(1, 500),
-            'tcp_retransmits': random.randint(0, 30),
-            'total_bytes': random.randint(100, 5000)
-        })
+    print(f"\n{GREEN}📡 Hosts encontrados: {len(hosts)}{RESET}")
+    for host in hosts[:10]:  # Mostrar primeros 10
+        print(f"  🖥️ {host['ip']} - {host['mac']} ({host['vendor']})")
     
-    print(f"\n{CYAN}🧠 Ejecutando RandomForest Classifier...{RESET}")
-    for i, m in enumerate(metricas[:5]):  # Mostrar primeras 5
-        resultado = ai_engine.clasificar_trafico(
-            m['packet_size'], m['packets_per_sec'], 
-            m['tcp_retransmits'], m['total_bytes']
-        )
-        
-        estado = f"{RED}⚠ ANOMALÍA{RESET}" if resultado['es_anomalia'] else f"{GREEN}✓ NORMAL{RESET}"
-        print(f"  Muestra {i+1}: {estado} (confianza: {resultado['confianza']*100:.1f}%)")
+    if len(hosts) > 10:
+        print(f"  ... y {len(hosts) - 10} más")
     
-    # Estadísticas generales
-    anomalias = sum(1 for m in metricas if ai_engine.clasificar_trafico(
-        m['packet_size'], m['packets_per_sec'], m['tcp_retransmits'], m['total_bytes']
-    )['es_anomalia'])
-    
-    print(f"\n{BLUE}📊 Reporte IA:{RESET}")
-    print(f"  Total muestras: {len(metricas)}")
-    print(f"  Anomalías detectadas: {anomalias}")
-    print(f"  Tasa de anomalía: {(anomalias/len(metricas))*100:.1f}%")
+    if input(f"{YELLOW}¿Exportar resultados? (s/n): {RESET}").lower() == 's':
+        export_utils.export_scan_results(hosts)
 
-def predecir_latencia_ia():
-    print(f"{CYAN}📡 Predicción de latencia usando Regresión Lineal{RESET}")
-    print(f"{YELLOW}Ingresa distancia aproximada al servidor (km):{RESET}")
+def prediccion_dl():
+    print(f"{CYAN}🧠 Predicción con LSTM...{RESET}")
+    
+    # Simular historial
+    historial = [[50 + i * 2, 30 + i, i % 10, 1500 + i * 10] for i in range(20)]
+    
+    prediccion = deep_ai.predecir_trafico_futuro(historial)
+    print(f"\n{BLUE}Predicción LSTM:{RESET}")
+    print(json.dumps(prediccion, indent=2))
+
+def deteccion_autoencoder():
+    print(f"{CYAN}🔍 Detección con Autoencoder...{RESET}")
+    
+    metricas = [500, 200, 50, 2000]  # Datos sospechosos
+    resultado = deep_ai.detectar_anomalia_dl(metricas)
+    
+    if resultado['es_anomalia']:
+        print(f"{RED}🚨 ANOMALÍA DETECTADA!{RESET}")
+        print(f"  Severidad: {resultado['severidad']}")
+        print(f"  Error: {resultado['error_reconstruccion']:.3f}")
+    else:
+        print(f"{GREEN}✅ Tráfico normal{RESET}")
+
+def iniciar_web():
+    print(f"{GREEN}🌐 Iniciando servidor web...{RESET}")
+    print(f"{YELLOW}Dashboard disponible en: http://localhost:5000{RESET}")
+    print(f"{YELLOW}Presiona Ctrl+C para detener{RESET}")
     
     try:
-        distancia = float(input(f"{CYAN}> {RESET}"))
-        latencia_predicha = ai_engine.predecir_latencia(distancia)
-        
-        print(f"\n{BLUE}🤖 IA Predice:{RESET}")
-        print(f"  Distancia: {distancia} km")
-        print(f"  Latencia estimada: {latencia_predicha:.1f} ms")
-        
-        if latencia_predicha < 30:
-            print(f"  {GREEN}✅ Excelente - Ideal para gaming/streaming{RESET}")
-        elif latencia_predicha < 100:
-            print(f"  {YELLOW}⚠ Aceptable - Navegación web normal{RESET}")
-        else:
-            print(f"  {RED}❌ Mala - Posible congestión o satélite{RESET}")
-    except ValueError:
-        print(f"{RED}❌ Ingresa un número válido{RESET}")
-
-def deteccion_anomalias_ia():
-    print(f"{YELLOW}🔍 Ejecutando Isolation Forest para detección de outliers...{RESET}")
-    
-    # Simular métricas de red
-    metricas_ejemplo = [
-        [50, 2, 5, 100],    # normal
-        [45, 1, 3, 95],     # normal
-        [55, 3, 4, 110],    # normal
-        [600, 400, 60, 2000], # outlier (posible ataque)
-        [800, 600, 90, 3000], # outlier
-        [48, 2, 3, 102],    # normal
-        [1000, 500, 150, 5000] # outlier severo
-    ]
-    
-    for i, m in enumerate(metricas_ejemplo):
-        es_outlier = ai_engine.detectar_outlier(m)
-        if es_outlier:
-            print(f"  {RED}🚨 Muestra {i+1}: OUTLIER DETECTADO{RESET}")
-            print(f"     Valores: packet_size={m[0]}, pps={m[1]}, retrans={m[2]}, bytes={m[3]}")
-        else:
-            print(f"  {GREEN}✓ Muestra {i+1}: Normal{RESET}")
-
-def analisis_patron_paquetes():
-    print(f"{YELLOW}📊 Analizando patrón de paquetes en tiempo real...{RESET}")
-    
-    # Simular historial de paquetes
-    historial = []
-    for _ in range(30):
-        historial.append([
-            random.randint(40, 1500),  # packet_size
-            random.randint(1, 300),     # packets_per_sec
-            random.randint(0, 15),      # tcp_retransmits
-            random.randint(50, 2000)    # total_bytes
-        ])
-    
-    # Insertar algunas anomalías
-    historial[5] = [1400, 500, 50, 5000]
-    historial[12] = [800, 400, 30, 3000]
-    
-    resultado = ai_engine.analizar_patron_tiempo_real(historial)
-    
-    print(f"\n{BLUE}📈 Análisis de patrón:{RESET}")
-    print(f"  Estado: {resultado['estado'].upper()}")
-    print(f"  Tamaño promedio de paquete: {resultado['media_packet_size']:.1f} bytes")
-    print(f"  Paquetes por segundo promedio: {resultado['media_pps']:.1f}")
-    print(f"  Retransmisiones TCP promedio: {resultado['media_retransmisiones']:.1f}")
-    
-    if resultado['alertas']:
-        print(f"\n{RED}⚠ ALERTAS:{RESET}")
-        for alerta in resultado['alertas']:
-            print(f"  - {alerta}")
-    else:
-        print(f"\n{GREEN}✅ Patrón normal - No se detectaron anomalías{RESET}")
-
-def entrenar_modelos():
-    print(f"{YELLOW}🧠 Reentrenando modelos de IA con nuevos datos...{RESET}")
-    ai_engine.entrenar_modelos()
-    print(f"{GREEN}✅ Modelos actualizados y guardados{RESET}")
+        start_web_server()
+    except KeyboardInterrupt:
+        print(f"\n{RED}Servidor detenido{RESET}")
 
 def main():
-    # Entrenar IA al inicio
+    # Entrenar IA
     if not ai_engine.is_trained:
         ai_engine.entrenar_modelos()
+    
+    if not deep_ai.is_trained:
+        deep_ai.entrenar_con_datos_reales()
     
     mostrar_banner()
     
@@ -198,29 +126,38 @@ def main():
         opcion = input(f"\n{CYAN}RedGhost>{RESET} ").strip()
         
         if opcion == "1":
-            escaneo_real_con_ia()
+            escaneo_puertos()
         elif opcion == "2":
-            analisis_trafico_ia()
+            descubrimiento_hosts()
         elif opcion == "3":
-            predecir_latencia_ia()
+            from redghost_old import analisis_trafico_ia
+            analisis_trafico_ia()
         elif opcion == "4":
-            deteccion_anomalias_ia()
+            from redghost_old import predecir_latencia_ia
+            predecir_latencia_ia()
         elif opcion == "5":
-            analisis_patron_paquetes()
+            from redghost_old import deteccion_anomalias_ia
+            deteccion_anomalias_ia()
         elif opcion == "6":
-            entrenar_modelos()
+            prediccion_dl()
         elif opcion == "7":
-            print(f"{GREEN}👻 ¡Hasta la vista, bro! RedGhost se retira...{RESET}")
+            deteccion_autoencoder()
+        elif opcion == "8":
+            if input(f"{YELLOW}Exportar hosts o escaneo? (h/e): {RESET}") == 'h':
+                descubrimiento_hosts()
+            else:
+                escaneo_puertos()
+        elif opcion == "9":
+            iniciar_web()
+        elif opcion == "10":
+            print(f"{GREEN}👻 ¡Hasta la vista, bro!{RESET}")
             sys.exit(0)
         else:
-            print(f"{RED}❌ Opción no válida{RESET}")
-        
-        input(f"\n{YELLOW}Presiona Enter para continuar...{RESET}")
+            print(f"{RED}❌ Opción inválida{RESET}")
 
 if __name__ == "__main__":
-    # Verificar permisos (scapy necesita root para algunos escaneos)
     try:
         main()
     except KeyboardInterrupt:
-        print(f"\n{YELLOW}⚠ Interrupción detectada. Saliendo...{RESET}")
+        print(f"\n{YELLOW}⚠ Interrupción detectada{RESET}")
         sys.exit(0)
